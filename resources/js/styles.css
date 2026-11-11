@@ -1,0 +1,251 @@
+@import "tailwindcss" source(none);
+@source ".";
+@import "tw-animate-css";
+
+@custom-variant dark (&:is(.dark *));
+
+/*
+ * FansBench design system — "Friendly but Premium"
+ * Primary Navy:    #12355B  brand-navy
+ * Electric Blue:   #2F80ED  brand-electric
+ * Vibrant Coral:   #FF6B4A  brand-coral
+ * Soft White:      #F8FAFC  brand-canvas
+ * Dark Charcoal:   #222222  brand-charcoal
+ */
+
+@theme inline {
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
+  --radius-2xl: calc(var(--radius) + 8px);
+  --radius-3xl: calc(var(--radius) + 16px);
+  --radius-4xl: calc(var(--radius) + 24px);
+
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-primary-hover: var(--primary-hover);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-accent-hover: var(--accent-hover);
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-success: var(--success);
+  --color-warning: var(--warning);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --color-surface: var(--surface);
+  --color-surface-muted: var(--surface-muted);
+
+  --color-brand-navy: #12355B;
+  --color-brand-navy-blue: #1E4E8C;
+  --color-brand-electric: #2F80ED;
+  --color-brand-orange-light: #FB923C;
+  --color-brand-coral: #FF6B4A;
+  --color-brand-canvas: #F8FAFC;
+  --color-brand-charcoal: #222222;
+
+  --shadow-card: 0 1px 2px rgba(18, 53, 91, 0.04), 0 4px 16px rgba(18, 53, 91, 0.06);
+  --shadow-card-hover: 0 2px 4px rgba(18, 53, 91, 0.06), 0 12px 32px rgba(18, 53, 91, 0.10);
+  --shadow-glow: 0 10px 30px -10px rgba(249, 115, 22, 0.45);
+
+  --font-sans: "Inter", ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  --font-display: "Manrope", "Sora", "Inter", ui-sans-serif, system-ui, sans-serif;
+}
+
+:root {
+  --radius: 1rem;
+
+  --background: #F8FAFC;
+  --foreground: #222222;
+
+  --surface: #FFFFFF;
+  --surface-muted: #EEF2F7;
+
+  --card: #FFFFFF;
+  --card-foreground: #222222;
+
+  --popover: #FFFFFF;
+  --popover-foreground: #222222;
+
+  --primary: #12355B;
+  --primary-hover: #0E2A48;
+  --primary-foreground: #FFFFFF;
+
+  --secondary: #E8F0FB;
+  --secondary-foreground: #12355B;
+
+  --muted: #F1F5F9;
+  --muted-foreground: #5A6478;
+
+  --accent: #F97316;
+  --accent-hover: #EA580C;
+  --accent-foreground: #FFFFFF;
+
+  --destructive: #E5484D;
+  --destructive-foreground: #FFFFFF;
+
+  --success: #17A673;
+  --warning: #F2994A;
+
+  --border: #E2E8F0;
+  --input: #E2E8F0;
+  --ring: #2F80ED;
+}
+
+@layer base {
+  * {
+    border-color: var(--color-border);
+  }
+
+  html, body {
+    background-color: var(--color-background);
+    color: var(--color-foreground);
+    font-family: var(--font-sans);
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
+  }
+
+  h1, h2, h3, h4, h5, h6 {
+    font-family: var(--font-display);
+    letter-spacing: -0.02em;
+    font-weight: 700;
+    color: var(--color-foreground);
+  }
+}
+
+@utility font-display {
+  font-family: var(--font-display);
+}
+
+@utility fb-card {
+  background-color: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-2xl);
+  box-shadow: var(--shadow-card);
+}
+
+@utility fb-card-hover {
+  transition: all 300ms ease;
+  &:hover {
+    box-shadow: var(--shadow-card-hover);
+    transform: translateY(-2px);
+  }
+}
+
+@utility fb-glass {
+  background-color: rgba(255, 255, 255, 0.8);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid rgba(255, 255, 255, 0.4);
+}
+
+@utility fb-gradient {
+  background-image: linear-gradient(135deg, var(--color-brand-navy), var(--color-brand-electric));
+}
+
+@utility btn-primary {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  background-color: var(--color-primary);
+  color: var(--color-primary-foreground);
+  border-radius: 9999px;
+  padding: 0.625rem 1.5rem;
+  font-weight: 600;
+  font-size: 0.9375rem;
+  transition: all 300ms ease;
+  &:hover { background-color: var(--color-primary-hover); transform: scale(1.02); }
+  &:active { transform: scale(0.97); }
+  &:disabled { opacity: 0.6; cursor: not-allowed; }
+}
+
+@utility btn-accent {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  background-color: var(--color-accent);
+  color: var(--color-accent-foreground);
+  border-radius: 9999px;
+  padding: 0.75rem 1.75rem;
+  font-weight: 700;
+  font-size: 0.9375rem;
+  box-shadow: var(--shadow-glow);
+  transition: all 300ms ease;
+  &:hover { opacity: 0.92; transform: scale(1.02); }
+  &:active { transform: scale(0.97); }
+  &:disabled { opacity: 0.6; cursor: not-allowed; box-shadow: none; }
+}
+
+@utility btn-ghost {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  color: var(--color-foreground);
+  border-radius: 9999px;
+  padding: 0.5rem 1.125rem;
+  font-weight: 600;
+  font-size: 0.875rem;
+  transition: background-color 200ms ease;
+  &:hover { background-color: var(--color-surface-muted); }
+}
+
+@utility btn-outline {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  border: 1.5px solid var(--color-primary);
+  color: var(--color-primary);
+  background-color: transparent;
+  border-radius: 9999px;
+  padding: 0.5rem 1.25rem;
+  font-weight: 600;
+  font-size: 0.875rem;
+  transition: all 300ms ease;
+  &:hover { background-color: var(--color-secondary); transform: scale(1.02); }
+  &:active { transform: scale(0.97); }
+}
+
+@utility fb-input {
+  width: 100%;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-xl);
+  background-color: var(--color-surface);
+  padding: 0.75rem 1rem;
+  font-size: 0.9375rem;
+  color: var(--color-foreground);
+  transition: border-color 200ms ease, box-shadow 200ms ease;
+  &:focus {
+    outline: none;
+    border-color: var(--color-brand-electric);
+    box-shadow: 0 0 0 4px color-mix(in oklab, var(--color-brand-electric) 18%, transparent);
+  }
+  &::placeholder { color: var(--color-muted-foreground); }
+}
+
+@utility chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.375rem;
+  padding: 0.25rem 0.75rem;
+  border-radius: 9999px;
+  background-color: var(--color-secondary);
+  color: var(--color-primary);
+  font-size: 0.75rem;
+  font-weight: 600;
+}

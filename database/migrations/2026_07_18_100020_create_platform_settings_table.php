@@ -1,0 +1,23 @@
+<?php
+
+use Illuminate\Database\Migrations\Migration;
+use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Support\Facades\Schema;
+
+return new class extends Migration
+{
+    public function up(): void
+    {
+        // Single-row key/value store for the adminApi.settings.get()/update() endpoints.
+        Schema::create('platform_settings', function (Blueprint $table) {
+            $table->string('key')->primary();
+            $table->json('value');
+            $table->timestamps();
+        });
+    }
+
+    public function down(): void
+    {
+        Schema::dropIfExists('platform_settings');
+    }
+};

@@ -1,0 +1,194 @@
+name: deploy
+
+on:
+  push:
+    branches: [deploy]
+  workflow_dispatch: {}
+
+concurrency:
+  # Never let two deploys race; cancel an in-flight one if a newer push lands.
+  group: production-deploy
+  cancel-in-progress: true
+
+jobs:
+
+  build:
+
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.2'
+          tools: composer:v2
+          # gd + zip: required by phpoffice/phpspreadsheet (admin report Excel exports) —
+          # without them `composer install` fails its platform check right here.
+          extensions: mbstring, pdo_sqlite, dom, bcmath, gd, zip, mysql
+          coverage: none
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          # Must satisfy package.json's "engines.node" — @tanstack/react-start requires
+          # >=22.12.0. Building with an older Node here produces a dist/ bundle that can
+          # fail at runtime with cryptic "does not provide an export" errors once the
+          # server's own Node (also >=22) resolves node_modules slightly differently.
+          node-version: '22.13.0'
+
+      - name: Install production PHP dependencies
+        run: |
+          mkdir -p database
+          touch database/database.sqlite
+          composer install \
+            --no-dev \
+            --no-interaction \
+            --prefer-dist \
+            --no-progress \
+            --optimize-autoloader \
+            --classmap-authoritative \
+            --no-scripts
+
+      - name: Build optimized frontend bundle
+        run: |
+          npm install
+          npm run build
+          npm prune --omit=dev
+
+
+      - name: Move frontend build to public directory
+        run: |
+          if [ -d dist/client ]; then
+            cp -r dist/client/* public/
+            echo "✓ Frontend assets moved to public/"
+            ls -la public/ | head -30
+          else
+            echo "::error::dist/client/ folder not found!"
+            exit 1
+          fi
+
+      - name: Assemble release directory
+        run: |
+          mkdir -p release
+          rsync -a \
+            --exclude='.git' \
+            --exclude='.github' \
+            --exclude='tests' \
+            --exclude='.env' \
+            --exclude='storage' \
+            --exclude='release' \
+            ./ release/
+
+      - name: Verify deploy/release.sh exists
+
+        run: |
+          if [ ! -f release/deploy/release.sh ]; then
+            echo "::error::release/deploy/release.sh is missing from the build artifact"
+            exit 1
+          fi
+
+      - name: Upload release artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: release
+          path: release
+          retention-days: 3
+          include-hidden-files: true
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment: production
+    steps:
+      - name: Download release artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: release
+          path: release
+
+      - name: Configure SSH and setup ssh-agent
+        run: |
+          mkdir -p ~/.ssh
+          echo "${{ secrets.SSH_PRIVATE_KEY }}" > ~/.ssh/deploy_key
+          chmod 600 ~/.ssh/deploy_key
+          ssh-keyscan -p "${{ secrets.SSH_PORT || 22 }}" -H "${{ secrets.SSH_HOST }}" >> ~/.ssh/known_hosts 2>/dev/null
+
+          eval "$(ssh-agent -s)"
+          echo "SSH_AUTH_SOCK=$SSH_AUTH_SOCK" >> "$GITHUB_ENV"
+          echo "SSH_AGENT_PID=$SSH_AGENT_PID" >> "$GITHUB_ENV"
+          ssh-add ~/.ssh/deploy_key
+
+          if ! ssh-add -l > /dev/null 2>&1; then
+            echo "::error::ssh-add did not load any identity into the agent — check the SSH_PRIVATE_KEY secret"
+            exit 1
+          fi
+
+      - name: Compute release ID
+        run: echo "RELEASE_ID=$(date -u +%Y%m%d%H%M%S)" >> "$GITHUB_ENV"
+
+      - name: Upload release to server
+        env:
+          SSH_PORT: ${{ secrets.SSH_PORT || 22 }}
+          SSH_USER: ${{ secrets.SSH_USER }}
+          SSH_HOST: ${{ secrets.SSH_HOST }}
+          DEPLOY_PATH: ${{ secrets.DEPLOY_PATH }}
+        run: |
+          TARGET="$DEPLOY_PATH/releases/$RELEASE_ID"
+          ssh -p "$SSH_PORT" "$SSH_USER@$SSH_HOST" "mkdir -p '$TARGET'"
+          rsync -az \
+            -e "ssh -p $SSH_PORT" \
+            release/ "$SSH_USER@$SSH_HOST:$TARGET/"
+
+      - name: Verify release.sh made it to the server
+        env:
+          SSH_PORT: ${{ secrets.SSH_PORT || 22 }}
+          SSH_USER: ${{ secrets.SSH_USER }}
+          SSH_HOST: ${{ secrets.SSH_HOST }}
+          DEPLOY_PATH: ${{ secrets.DEPLOY_PATH }}
+        run: |
+          ssh -p "$SSH_PORT" "$SSH_USER@$SSH_HOST" \
+            "test -f '$DEPLOY_PATH/releases/$RELEASE_ID/deploy/release.sh'"
+
+      - name: Deploy .env file from GitHub Secret
+        env:
+          SSH_PORT: ${{ secrets.SSH_PORT || 22 }}
+          SSH_USER: ${{ secrets.SSH_USER }}
+          SSH_HOST: ${{ secrets.SSH_HOST }}
+          DEPLOY_PATH: ${{ secrets.DEPLOY_PATH }}
+          ENV_CONTENT: ${{ secrets.ENV_FILE }}
+        run: |
+          SHARED_DIR="$DEPLOY_PATH/shared"
+          ssh -p "$SSH_PORT" "$SSH_USER@$SSH_HOST" "mkdir -p '$SHARED_DIR'"
+          printf "%s" "$ENV_CONTENT" > runner_env_file
+          rsync -az -e "ssh -p $SSH_PORT" runner_env_file "$SSH_USER@$SSH_HOST:$SHARED_DIR/.env"
+          rm runner_env_file
+          ssh -p "$SSH_PORT" "$SSH_USER@$SSH_HOST" "chmod 600 '$SHARED_DIR/.env'"
+
+      - name: Activate release atomically
+        env:
+          SSH_PORT: ${{ secrets.SSH_PORT || 22 }}
+          SSH_USER: ${{ secrets.SSH_USER }}
+          SSH_HOST: ${{ secrets.SSH_HOST }}
+          DEPLOY_PATH: ${{ secrets.DEPLOY_PATH }}
+        run: |
+          ssh -p "$SSH_PORT" "$SSH_USER@$SSH_HOST" \
+            "DEPLOY_PATH='$DEPLOY_PATH' bash '$DEPLOY_PATH/releases/$RELEASE_ID/deploy/release.sh' '$RELEASE_ID'"
+
+      - name: Verify the release actually went live
+        env:
+          SSH_PORT: ${{ secrets.SSH_PORT || 22 }}
+          SSH_USER: ${{ secrets.SSH_USER }}
+          SSH_HOST: ${{ secrets.SSH_HOST }}
+          DEPLOY_PATH: ${{ secrets.DEPLOY_PATH }}
+        run: |
+          LIVE=$(ssh -p "$SSH_PORT" "$SSH_USER@$SSH_HOST" "readlink '$DEPLOY_PATH/current'")
+          if [ "$LIVE" != "$DEPLOY_PATH/releases/${{ env.RELEASE_ID }}" ]; then
+            echo "::error::current -> $LIVE, expected $DEPLOY_PATH/releases/${{ env.RELEASE_ID }}"
+            exit 1
+          fi
+          echo "✓ Deployment successful: current -> $LIVE"
+
+      - name: Cleanup SSH
+        if: always()
+        run: rm -f ~/.ssh/deploy_key
